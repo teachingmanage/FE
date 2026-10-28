@@ -68,7 +68,8 @@ const en = {
   installApp: "Install",
   installIosHint:
     "To install this app on iPhone or iPad, tap the Share button in Safari and then choose “Add to Home Screen”.",
-  connectedApi: "Connected to local API · http://localhost:7023",
+  // `{api}` is replaced with the address of the backend the app talks to.
+  connectedApi: "Connected to API · {api}",
   namePlaceholder: "e.g. Nguyen Van A",
   usernamePlaceholder: "e.g. teacher01",
 
@@ -148,7 +149,7 @@ const en = {
   deleteClassConfirm: "Delete this class and all its students?",
   removeStudentConfirm: "Remove this student?",
 
-  footer: "Teaching Manager · API: http://localhost:7023 · data stored in Postgres",
+  footer: "Teaching Manager · API: {api} · data stored in Postgres",
 } as const;
 
 const vi = {
@@ -171,7 +172,8 @@ const vi = {
   installApp: "Cài đặt",
   installIosHint:
     "Để cài app này trên iPhone hoặc iPad, hãy bấm nút Chia sẻ trong Safari rồi chọn “Thêm vào Màn hình chính”.",
-  connectedApi: "Đã kết nối API cục bộ · http://localhost:7023",
+  // `{api}` is replaced with the address of the backend the app talks to.
+  connectedApi: "Đã kết nối API · {api}",
   namePlaceholder: "VD: Nguyễn Văn A",
   usernamePlaceholder: "VD: giaovien01",
 
@@ -251,7 +253,7 @@ const vi = {
   deleteClassConfirm: "Xoá lớp này và toàn bộ học sinh?",
   removeStudentConfirm: "Xoá học sinh này?",
 
-  footer: "Quản lý Giảng dạy · API: http://localhost:7023 · dữ liệu lưu trong Postgres",
+  footer: "Quản lý Giảng dạy · API: {api} · dữ liệu lưu trong Postgres",
 } as const;
 
 export type TranslationKey = keyof typeof en;

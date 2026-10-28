@@ -267,7 +267,7 @@ function LangToggle({
   );
 }
 
-export default function Home() {
+export default function TeachingApp({ apiAddress }: { apiAddress: string }) {
   const user = useSyncExternalStore(
     subscribeSession,
     getSessionSnapshot,
@@ -276,8 +276,8 @@ export default function Home() {
   const lang = useSyncExternalStore(subscribeLang, getLangSnapshot, getServerLangSnapshot);
   const t = useCallback(
     (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) =>
-      translate(lang, key, vars),
-    [lang]
+      translate(lang, key, { api: apiAddress, ...vars }),
+    [lang, apiAddress]
   );
   const monthLabels = MONTH_LABELS[lang];
 

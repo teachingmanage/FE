@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import http from "node:http";
-import https from "node:https";
 import {
   ACCESS_COOKIE,
   REMEMBER_COOKIE,
   cookieOptions,
 } from "@/app/lib/session";
+import {
+  forwardUpstream,
+  upstreamHostHeader,
+  upstreamLabel,
+} from "@/app/lib/api-upstream";
 
 // The browser calls this same-origin route; the route forwards to the .NET
 // backend. This keeps the frontend working no matter whether the backend is
@@ -19,101 +22,11 @@ import {
 // "remember me" token both live in httpOnly cookies, so the browser sends
 // them back on every request and the user stays signed in across restarts.
 
-const HOST = process.env.TEACHING_API_HOST || "localhost";
-const PORT = process.env.TEACHING_API_PORT || "7023";
-
-// Explicit override always wins.
-const EXPLICIT =
-  process.env.TEACHING_API_URL || process.env.NEXT_PUBLIC_API_URL || null;
-
-type ProxyResult = {
-  status: number;
-  statusText: string;
-  headers: Record<string, string>;
-  body: Buffer;
+type Refreshed = {
+  token: string;
+  rememberToken?: string;
+  rememberExpiresDays?: number;
 };
-
-function requestOnce(
-  method: string,
-  path: string,
-  headers: Record<string, string>,
-  body: Buffer | undefined,
-  protocol: "http:" | "https:"
-): Promise<ProxyResult> {
-  const isHttps = protocol === "https:";
-  const transport = isHttps ? https : http;
-
-  return new Promise((resolve, reject) => {
-    const req = transport.request(
-      {
-        protocol,
-        hostname: HOST,
-        port: PORT,
-        path,
-        method,
-        headers,
-        // The .NET dev certificate is self-signed. Node does not trust it by
-        // default, so TLS verification is disabled for this local-only proxy.
-        // Do not point this at a public HTTPS API.
-        ...(isHttps ? { rejectUnauthorized: false } : {}),
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (d: Buffer) => chunks.push(d));
-        res.on("end", () => {
-          const out: Record<string, string> = {};
-          for (const [k, v] of Object.entries(res.headers)) {
-            if (v === undefined) continue;
-            out[k] = Array.isArray(v) ? v.join(", ") : String(v);
-          }
-          resolve({
-            status: res.statusCode ?? 502,
-            statusText: res.statusMessage ?? "",
-            headers: out,
-            body: Buffer.concat(chunks),
-          });
-        });
-      }
-    );
-    req.on("error", reject);
-    if (body && body.length) req.write(body);
-    req.end();
-  });
-}
-
-// Which protocol the backend is actually speaking? Remembered after the first
-// successful probe so later requests skip the extra attempt.
-let resolvedProtocol: "http:" | "https:" | null = null;
-
-async function forward(
-  method: string,
-  path: string,
-  headers: Record<string, string>,
-  body: Buffer | undefined
-): Promise<ProxyResult> {
-  if (EXPLICIT) {
-    const url = new URL(EXPLICIT);
-    return requestOnce(method, path, headers, body, url.protocol as "http:" | "https:");
-  }
-
-  // The remembered protocol is only a hint: the backend may have been
-  // restarted with the other launch profile, so fall back to trying both.
-  const order: ("http:" | "https:")[] = resolvedProtocol
-    ? [resolvedProtocol, resolvedProtocol === "https:" ? "http:" : "https:"]
-    : ["https:", "http:"];
-
-  let lastError: unknown;
-  for (const protocol of order) {
-    try {
-      const res = await requestOnce(method, path, headers, body, protocol);
-      resolvedProtocol = protocol;
-      return res;
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  throw lastError;
-}
 
 // Exchanges a "remember me" token for a fresh access token.
 //
@@ -122,19 +35,15 @@ async function forward(
 // remember token.
 async function refreshSession(
   rememberToken: string
-): Promise<{
-  token: string;
-  rememberToken?: string;
-  rememberExpiresDays?: number;
-} | null> {
+): Promise<Refreshed | null> {
   try {
-    const res = await forward(
+    const res = await forwardUpstream(
       "POST",
       "/api/auth/refresh",
       {
         "content-type": "application/json",
         accept: "application/json",
-        host: `${HOST}:${PORT}`,
+        host: upstreamHostHeader(),
       },
       Buffer.from(JSON.stringify({ rememberToken }))
     );
@@ -166,7 +75,7 @@ async function proxy(req: NextRequest) {
   const headers: Record<string, string> = {};
   const contentType = req.headers.get("content-type");
   if (contentType) headers["content-type"] = contentType;
-  headers.host = `${HOST}:${PORT}`;
+  headers.host = upstreamHostHeader();
   headers["accept"] = req.headers.get("accept") ?? "application/json";
 
   const method = req.method;
@@ -193,11 +102,7 @@ async function proxy(req: NextRequest) {
     path === "/api/auth/register" ||
     path === "/api/auth/refresh" ||
     path === "/api/auth/logout";
-  let refreshed: {
-    token: string;
-    rememberToken?: string;
-    rememberExpiresDays?: number;
-  } | null = null;
+  let refreshed: Refreshed | null = null;
 
   if (!explicitAuth && !isAuthEndpoint && !accessToken) {
     // No access token at all — try to restore the session from the remember
@@ -214,7 +119,7 @@ async function proxy(req: NextRequest) {
   }
 
   try {
-    const res = await forward(method, `${path}${search}`, headers, body);
+    const res = await forwardUpstream(method, `${path}${search}`, headers, body);
 
     // The access token was rejected (expired or revoked). If the user asked to
     // be remembered, mint a new one instead of logging them out.
@@ -225,7 +130,12 @@ async function proxy(req: NextRequest) {
         if (retried) {
           refreshed = retried;
           headers.authorization = `Bearer ${retried.token}`;
-          const retry = await forward(method, `${path}${search}`, headers, body);
+          const retry = await forwardUpstream(
+            method,
+            `${path}${search}`,
+            headers,
+            body
+          );
           return toResponse(req, retry, refreshed);
         }
       }
@@ -236,7 +146,10 @@ async function proxy(req: NextRequest) {
     // A successful login / register carries the tokens in the response body.
     // Move them into httpOnly cookies so the browser sends them back on every
     // request — that is what keeps the user signed in across reloads.
-    if (res.status === 200 && (path === "/api/auth/login" || path === "/api/auth/register")) {
+    if (
+      res.status === 200 &&
+      (path === "/api/auth/login" || path === "/api/auth/register")
+    ) {
       const issued = extractIssuedTokens(res);
       if (issued) return toResponse(req, res, issued);
     }
@@ -246,7 +159,10 @@ async function proxy(req: NextRequest) {
     return Response.json(
       {
         title: "Cannot reach the API",
-        detail: e instanceof Error ? `${e.message} (tried ${HOST}:${PORT})` : "Unknown error",
+        detail:
+          e instanceof Error
+            ? `${e.message} (tried ${upstreamLabel()})`
+            : "Unknown error",
       },
       { status: 502 }
     );
@@ -255,7 +171,13 @@ async function proxy(req: NextRequest) {
 
 // Pulls the access token (and optional remember token) out of an auth
 // response body.
-function extractIssuedTokens(res: ProxyResult) {
+function extractIssuedTokens(res: {
+  body: Buffer;
+}): {
+  token: string;
+  rememberToken?: string;
+  rememberExpiresDays?: number;
+} | null {
   try {
     const data = JSON.parse(res.body.toString("utf8")) as {
       token?: string;
@@ -275,12 +197,8 @@ function extractIssuedTokens(res: ProxyResult) {
 
 function toResponse(
   req: NextRequest,
-  res: ProxyResult,
-  refreshed: {
-    token: string;
-    rememberToken?: string;
-    rememberExpiresDays?: number;
-  } | null,
+  res: { status: number; statusText: string; headers: Record<string, string>; body: Buffer },
+  refreshed: Refreshed | null,
   clearSession = false
 ) {
   const outHeaders = new Headers();
@@ -290,11 +208,14 @@ function toResponse(
   // 204/205/304 must not carry a body, or the Response constructor throws.
   const nullBodyStatus = res.status === 204 || res.status === 205 || res.status === 304;
 
-  const response = new NextResponse(nullBodyStatus ? null : new Uint8Array(res.body), {
-    status: res.status,
-    statusText: res.statusText,
-    headers: outHeaders,
-  });
+  const response = new NextResponse(
+    nullBodyStatus ? null : new Uint8Array(res.body),
+    {
+      status: res.status,
+      statusText: res.statusText,
+      headers: outHeaders,
+    }
+  );
 
   if (refreshed) {
     // Keep the cookies fresh so the session survives the next reload.
