@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "icons": "node scripts/make-icons.js",
+    "verify:pwa": "node scripts/verify-pwa.js",
+    "verify:offline": "node scripts/verify-offline.js"
   },
   "dependencies": {
     "next": "16.4.3",

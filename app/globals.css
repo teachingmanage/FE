@@ -22,5 +22,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Use the Geist variable (which includes the Vietnamese subset) instead of
+     hard-coding Arial, which would otherwise override it. */
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

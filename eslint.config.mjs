@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build-time Node scripts, not part of the browser bundle.
+    "scripts/**",
   ]),
 ]);
 
