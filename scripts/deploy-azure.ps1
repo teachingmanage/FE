@@ -89,7 +89,6 @@ az webapp config appsettings set `
     "Jwt__ExpiresHours=72" `
     "Jwt__RememberExpiresDays=365" `
     "ConnectionStrings__Default=$conn" `
-    "EnableSwagger=true" `
     --output none
 
 # --- 4. Upload the published app ------------------------------------------

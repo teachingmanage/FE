@@ -30,6 +30,7 @@ import {
   translate,
 } from "./lib/i18n";
 import { InstallButton } from "./lib/install-button";
+import { ScanPaymentsModal } from "./lib/scan-modal";
 
 // ---------- reusable styles (explicit light theme, high contrast) ----------
 const card = "rounded-2xl border border-slate-200 bg-white shadow-sm";
@@ -333,6 +334,8 @@ export default function TeachingApp({ apiAddress }: { apiAddress: string }) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [studentForm, setStudentForm] = useState({ name: "", phone: "", note: "" });
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanNotice, setScanNotice] = useState("");
   // `year` is derived from the client-only "today" snapshot unless the user picks one.
   const [yearOverride, setYearOverride] = useState<string | null>(null);
   const todayMonth = useSyncExternalStore(noopSubscribe, getTodayMonth, () => "");
@@ -1005,6 +1008,16 @@ export default function TeachingApp({ apiAddress }: { apiAddress: string }) {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScanNotice("");
+                      setScanOpen(true);
+                    }}
+                    className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:from-indigo-500 hover:to-violet-500"
+                  >
+                    {t("scanTitle")}
+                  </button>
                   <label className="text-sm font-bold text-slate-600">{t("year")}:</label>
                   <select
                     className={inputCls}
@@ -1329,10 +1342,33 @@ export default function TeachingApp({ apiAddress }: { apiAddress: string }) {
                   </div>
                 )}
               </div>
+
+              {scanNotice && (
+                <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                  ✅ {scanNotice}
+                </p>
+              )}
             </div>
           )}
         </main>
       </div>
+
+      {scanOpen && selectedClass && year && (
+        <ScanPaymentsModal
+          classId={selectedClass.id}
+          year={year}
+          students={students}
+          monthLabels={monthLabels}
+          t={t}
+          onClose={() => setScanOpen(false)}
+          onApplied={async (message) => {
+            setScanNotice(message);
+            await refreshDetail(selectedClass.id, year);
+            await refreshClasses();
+            window.setTimeout(() => setScanNotice(""), 8000);
+          }}
+        />
+      )}
 
       <footer className="mx-auto w-full max-w-6xl px-6 pb-6 text-center text-xs font-medium text-slate-400">
         {t("footer")}

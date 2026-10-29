@@ -297,3 +297,64 @@ export function formatMonth(m: string): string {
   const d = new Date(Number(y), Number(mo) - 1, 1);
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
+
+// ---------------- AI photo scan ----------------
+// Sends a photo of a printed tuition table to the server, which reads it
+// with the free Gemini vision API and returns structured rows.
+export type ScanPaymentRow = {
+  name: string;
+  paidMonths: number[];
+  confidence: number;
+  note: string;
+};
+
+export type ScanPaymentsResult = {
+  year: string;
+  months: { index: number; label: string }[];
+  rows: ScanPaymentRow[];
+};
+
+export async function apiScanPayments(
+  image: File,
+  year: string,
+  existingNames: string[]
+): Promise<ScanPaymentsResult> {
+  const form = new FormData();
+  form.append("image", image);
+  form.append("year", year);
+  form.append("existingNames", JSON.stringify(existingNames));
+  const res = await fetch("/api/ai/scan-payments", {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const text = await res.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+  if (!res.ok) {
+    const msg =
+      typeof data === "string"
+        ? data
+        : (data as { message?: string; title?: string })?.message ??
+          (data as { title?: string })?.title ??
+          `Scan failed (${res.status})`;
+    throw new Error(msg);
+  }
+  return data as ScanPaymentsResult;
+}
+
+// Matches a scanned name against existing students, ignoring case,
+// extra spaces and Vietnamese diacritics, so "Nguyễn Văn A",
+// "nguyen van a" and "Nguyen Van A" all match.
+export function normalizeName(n: string): string {
+  return n
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}

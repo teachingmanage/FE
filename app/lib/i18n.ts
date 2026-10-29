@@ -52,6 +52,26 @@ const en = {
   appName: "Teaching Manager",
   loading: "Loading…",
 
+  // scan import
+  scanTitle: "📸 Scan payment table",
+  scanPick: "Take or pick a photo of the printed fee table — signed cells count as paid.",
+  scanChange: "Change photo",
+  scanReading: "Reading photo…",
+  scanRead: "Read photo",
+  scanNoRows: "No student rows were recognized — try a brighter, straight-on photo.",
+  scanMatched: "matched",
+  scanNew: "new",
+  scanNewStudents: "{n} new students will be created",
+  scanPaidCells: "{n} paid cells",
+  scanApply: "Push {n} to web",
+  scanApplied: "Pushed {paid} payments for {students} students.",
+  scanEmpty: "Nothing to push — no paid cells.",
+  scanUncertain: "Uncertain — please check",
+  scanRemoveRow: "Remove row",
+  scanLowConfidence: "Low-confidence rows are highlighted — uncheck anything wrong before pushing.",
+  scanNoKey: "AI is not configured yet — ask the admin to add a free GEMINI_API_KEY.",
+  scanHowto: "Tip: shoot straight-on in good light, keep all rows and month columns in frame.",
+
   // auth
   login: "Log in",
   register: "Sign up",
@@ -155,6 +175,26 @@ const en = {
 const vi = {
   appName: "Quản lý Giảng dạy",
   loading: "Đang tải…",
+
+  // scan import
+  scanTitle: "📸 Quét bảng học phí",
+  scanPick: "Chụp hoặc chọn ảnh bảng học phí in — ô có chữ ký được tính là đã đóng.",
+  scanChange: "Đổi ảnh",
+  scanReading: "Đang đọc ảnh…",
+  scanRead: "Đọc ảnh",
+  scanNoRows: "Không nhận ra học sinh nào — thử chụp thẳng, đủ sáng hơn.",
+  scanMatched: "khớp",
+  scanNew: "mới",
+  scanNewStudents: "Sẽ tạo {n} học sinh mới",
+  scanPaidCells: "{n} ô đã đóng",
+  scanApply: "Đẩy {n} lên web",
+  scanApplied: "Đã đẩy {paid} lượt đóng cho {students} học sinh.",
+  scanEmpty: "Không có gì để đẩy — chưa có ô đã đóng.",
+  scanUncertain: "Chưa chắc — kiểm tra lại",
+  scanRemoveRow: "Xoá dòng",
+  scanLowConfidence: "Dòng mờ được tô vàng — bỏ tick những ô sai trước khi đẩy.",
+  scanNoKey: "Chưa cấu hình AI — nhờ quản trị thêm GEMINI_API_KEY miễn phí.",
+  scanHowto: "Mẹo: chụp thẳng, đủ sáng, lấy hết tên và các cột tháng.",
 
   // auth
   login: "Đăng nhập",
