@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../.."
+		},
+		{
+			"path": "C:/Users/Admin/Documents/Arduino/testesp32pushdata"
 		}
 	],
 	"settings": {}
